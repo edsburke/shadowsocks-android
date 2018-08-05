@@ -16,7 +16,7 @@ jobs:
           key: go-full-{{ checksum "~/code/.git/modules/core/src/overture/go/HEAD" }}
       - run:
           name: Run Build and Tests
-          command: ./gradlew assembleDebug check
+          command: ./gradlew assembleRelease check
       - save_cache:
           paths:
             - ~/.gradle
@@ -32,3 +32,6 @@ jobs:
       - store_artifacts:
           path: mobile/build/reports
           destination: reports
+      - deploy:
+           name: Deploy
+           command: ./release-github.sh
