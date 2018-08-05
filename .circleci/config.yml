@@ -5,3 +5,7 @@ jobs:
       only:
         - master
         - legacy
+    docker:
+      - image: shadowsocks/shadowsocks-android:circleci
+    steps:
+      - echo "Ignore"
