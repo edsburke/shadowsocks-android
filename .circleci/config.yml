@@ -8,4 +8,6 @@ jobs:
     docker:
       - image: shadowsocks/shadowsocks-android:circleci
     steps:
-      - echo "Ignore"
+      - run:
+          name: Ignore
+          command: echo "ignore"
