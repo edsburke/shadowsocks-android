@@ -39,7 +39,7 @@ class AclSyncer : Worker() {
 
     override fun doWork(): Result = try {
         val route = tags.asIterable().single()!!
-        val acl = URL("https://shadowsocks.org/acl/android/v1/$route.acl").openStream().bufferedReader()
+        val acl = URL("https://pexcn.me/shadowsocks-android/acl/$route.acl").openStream().bufferedReader()
                 .use { it.readText() }
         Acl.getFile(route).printWriter().use { it.write(acl) }
         Result.SUCCESS
