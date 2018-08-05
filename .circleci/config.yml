@@ -2,6 +2,6 @@ version: 2
 jobs:
   build:
     branches:
-      ignore:
-        - release
-        - gh-pages
+      only:
+        - master
+        - legacy
