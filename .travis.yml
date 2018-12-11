@@ -1,0 +1,18 @@
+dist: xenial
+language: bash
+
+notifications:
+  email: false
+
+addons:
+  apt:
+    packages:
+      - python
+
+env:
+  global:
+    - secure: "gLniov7+I69q61HmHNrR666AQN3W+U2EFj83uR4aPpWskXVoPx4VvTIjUjZ8M+Sd6Ss45aVjxt/6652SCH7R7iDrwAkgF3gPrVTHxCQ2H2s7XgHWJ/a/7WcRaQE+PPPDG5SXTp4ANOIZ1A0rHdvgTKHQCQcciYA1TasYPdTv7cr6oU4IS7VSlxwZxOidm/6Gqp5rhDKskoVX99MVO93QQszTAQO7caw7LX6ELvz70d6PgEl/8nmMwSVRuDomyhlIZ5RdtWfHcXWJ31B3UMhIkol6951Ew9V2APU6REjBjN3/qEMQboCxCIiHQOdMKNAjLzIuHO9VGj75DCBMNlQQDVPfeSgExXvP81L4gOrTlguTZWuhbf26XFb6OHHov9Yh1y5CTw5h6NsDhe3SS901ptrGuogbYin2CkcdocI+hPUkC8x0DLS1dSxT9wx5VUa/8F7/AgZ3zrJotJlz+EFRhJz+WSPPc+JEWJm0oeq+qvVCQkZZVwjb5j54koI2jIgPeSCg7kEk3b0ZYcwj1mQU91POYBZGL9O5U4BxrHkByvJnNw8dcRZ6njZmmlPJOJzOYuVVDPghGdpJHj6FLdl/b3k1wKa/SOTRnoppx8i5Z4s+gWpxJeGMDEKhR/V97BjzyH4Eb7+XX0eUFHGlFpE9l62ezhP2mKbu17DXUvTB+eo="
+    - TZ: "Asia/Shanghai"
+
+script:
+  - bash generate.sh
