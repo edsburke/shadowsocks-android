@@ -40,15 +40,12 @@ function gen_bypass_acl() {
 }
 
 function dist_release() {
-  mkdir -p dist
-
-  pushd dist
-  cp ../gen/gfwlist.acl .
-  cp ../gen/china-list.acl .
-  cp ../template/bypass-lan.acl .
-  cp ../gen/bypass-china.acl .
-  cp ../gen/bypass-lan-china.acl .
-  popd
+  mkdir -p dist/acl
+  cp gen/gfwlist.acl dist/acl/
+  cp gen/china-list.acl dist/acl/
+  cp template/bypass-lan.acl dist/acl/
+  cp gen/bypass-china.acl dist/acl/
+  cp gen/bypass-lan-china.acl dist/acl/
 }
 
 fetch_data
