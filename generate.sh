@@ -62,7 +62,7 @@ function upload_github() {
 
   git add --all
   git commit -m "[skip ci] automatically update on `date +'%Y-%m-%d %T'`"
-  git push --quiet "https://${token}@github.com/pexcn/shadowsocks-android.git" gh-pages
+  git push --quiet "https://${GITHUB_TOKEN}@github.com/pexcn/shadowsocks-android.git" gh-pages
 
   popd
 }
