@@ -1,8 +1,6 @@
 #!/bin/bash -e
 
 prepare() {
-  export TZ=Asia/Shanghai
-
   git clone https://github.com/pexcn/shadowsocks-android.git -b release --depth 3 shadowsocks-release
   pushd shadowsocks-release
   git config user.name "pexcn"

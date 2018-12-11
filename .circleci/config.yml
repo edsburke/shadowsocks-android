@@ -39,6 +39,3 @@ jobs:
       - store_artifacts:
           path: tv/build/reports
           destination: reports/tv
-      - deploy:
-           name: Deploy
-           command: ./release-github.sh
