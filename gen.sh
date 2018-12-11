@@ -1,16 +1,26 @@
 #!/bin/bash -e
 
-TMP_DIR=`mktemp -d /tmp/acl.XXXXXX`
+GFWLIST_URL='https://raw.githubusercontent.com/gfwlist/gfwlist/master/gfwlist.txt'
+CHNROUTE_URL='https://pexcn.me/daily/chnroute/chnroute.txt'
 
 function fetch_data() {
-  pushd ${TMP_DIR}
-  curl -kLs ${TODO_URL} > ${TODO}
+  mkdir gen
+
+  pushd gen
+  curl -kLs ${GFWLIST_URL} > gfwlist.txt
+  curl -kLs ${CHNROUTE_URL} > chnroute.txt
   popd
 }
 
 function gen_gfwlist_acl() {
-  sed -i 's/.*\((^|\\.)blogspot\\.\).*/\(^|\\.)blogspot(\\.[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?){1,2}$/' acl.acl
-  sed -i 's/.*\((^|\\.)google\\.\).*/\(^|\\.)google(\\.[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?){1,2}$/' acl.acl
-  sed -i 's/.*\((^|\\.)googleapis\\.\).*/\(^|\\.)googleapis(\\.[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?){1,2}$/' acl.acl
-  uniq acl.acl > ok.acl
+  pushd gen
+  ../parse.py -i gfwlist.txt -f gfwlist_tmp.acl
+  sed -i 's/.*\((^|\\.)blogspot\\.\).*/\(^|\\.)blogspot(\\.[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?){1,2}$/' gfwlist_tmp.acl
+  sed -i 's/.*\((^|\\.)google\\.\).*/\(^|\\.)google(\\.[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?){1,2}$/' gfwlist_tmp.acl
+  sed -i 's/.*\((^|\\.)googleapis\\.\).*/\(^|\\.)googleapis(\\.[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?){1,2}$/' gfwlist_tmp.acl
+  uniq gfwlist_tmp.acl > gfwlist.acl
+  popd
 }
+
+fetch_data
+gen_gfwlist_acl
