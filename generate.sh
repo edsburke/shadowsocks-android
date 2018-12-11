@@ -48,8 +48,28 @@ function dist_release() {
   cp gen/bypass-lan-china.acl dist/acl/
 }
 
+function upload_github() {
+  git clone https://github.com/pexcn/shadowsocks-android.git -b gh-pages --depth 3 shadowsocks-acl
+
+  pushd shadowsocks-acl
+
+  git config user.name "Travis CI"
+  git config user.email "travis.ci.build@gmail.com"
+  git config log.date iso
+
+  rm -r acl
+  cp -r ../dist/acl .
+
+  git add --all
+  git commit -m "[skip ci] automatically update on `date +'%Y-%m-%d %T'`"
+  git push --quiet "https://${token}@github.com/pexcn/shadowsocks-android.git" gh-pages
+
+  popd
+}
+
 fetch_data
 gen_gfwlist_acl
 gen_china_list_acl
 gen_bypass_acl
 dist_release
+upload_github
