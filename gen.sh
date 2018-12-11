@@ -14,11 +14,11 @@ function fetch_data() {
 
 function gen_gfwlist_acl() {
   pushd gen
-  ../parse.py -i gfwlist.txt -f gfwlist_tmp.acl
-  sed -i 's/.*\((^|\\.)blogspot\\.\).*/\(^|\\.)blogspot(\\.[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?){1,2}$/' gfwlist_tmp.acl
-  sed -i 's/.*\((^|\\.)google\\.\).*/\(^|\\.)google(\\.[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?){1,2}$/' gfwlist_tmp.acl
-  sed -i 's/.*\((^|\\.)googleapis\\.\).*/\(^|\\.)googleapis(\\.[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?){1,2}$/' gfwlist_tmp.acl
-  uniq gfwlist_tmp.acl > gfwlist.acl
+  ../parse.py -i gfwlist.txt -f gfwlist.tmp
+  sed -i 's/.*\((^|\\.)blogspot\\.\).*/\(^|\\.)blogspot(\\.[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?){1,2}$/' gfwlist.tmp
+  sed -i 's/.*\((^|\\.)google\\.\).*/\(^|\\.)google(\\.[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?){1,2}$/' gfwlist.tmp
+  sed -i 's/.*\((^|\\.)googleapis\\.\).*/\(^|\\.)googleapis(\\.[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?){1,2}$/' gfwlist.tmp
+  uniq gfwlist.tmp > gfwlist.acl
   popd
 }
 
