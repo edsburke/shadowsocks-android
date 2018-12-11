@@ -4,7 +4,7 @@ GFWLIST_URL='https://raw.githubusercontent.com/gfwlist/gfwlist/master/gfwlist.tx
 CHNROUTE_URL='https://pexcn.me/daily/chnroute/chnroute.txt'
 
 function fetch_data() {
-  mkdir gen
+  mkdir -p gen
 
   pushd gen
   curl -kLs ${GFWLIST_URL} > gfwlist.txt
@@ -24,11 +24,35 @@ function gen_gfwlist_acl() {
 
 function gen_china_list_acl() {
   pushd gen
-  cp ../template/china-list.acl china-list.acl
+  cp ../template/china-list.acl .
   sed -i "s/___CHNROUTE_LIST_PLACEHOLDER___/cat chnroute.txt/e" china-list.acl
+  popd
+}
+
+function gen_bypass_acl() {
+  pushd gen
+  cp ../template/bypass-china.acl .
+  cp ../template/bypass-lan-china.acl .
+  sed -e '1,/proxy_list/d' gfwlist.acl > proxylist.txt
+  sed -i "s/___CHNROUTE_LIST_PLACEHOLDER___/cat chnroute.txt/e" bypass-china.acl bypass-lan-china.acl
+  sed -i "s/___GFWLIST_PROXY_LIST_PLACEHOLDER___/cat proxylist.txt/e" bypass-china.acl bypass-lan-china.acl
+  popd
+}
+
+function dist_release() {
+  mkdir -p dist
+
+  pushd dist
+  cp ../gen/gfwlist.acl .
+  cp ../gen/china-list.acl .
+  cp ../template/bypass-lan.acl .
+  cp ../gen/bypass-china.acl .
+  cp ../gen/bypass-lan-china.acl .
   popd
 }
 
 fetch_data
 gen_gfwlist_acl
 gen_china_list_acl
+gen_bypass_acl
+dist_release
