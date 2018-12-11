@@ -49,7 +49,7 @@ function dist_release() {
 }
 
 function upload_github() {
-  git clone https://github.com/pexcn/shadowsocks-android.git -b gh-pages --depth 3 shadowsocks-acl
+  git clone https://github.com/pexcn/shadowsocks-android.git -b gh-pages --depth 5 shadowsocks-acl
 
   pushd shadowsocks-acl
 
@@ -57,11 +57,11 @@ function upload_github() {
   git config user.email "travis.ci.build@gmail.com"
   git config log.date iso
 
-  rm -r acl
+  rm -r acl || echo "INFO: SKIP"
   cp -r ../dist/acl .
 
   git add --all
-  git commit -m "[skip ci] automatically update on `date +'%Y-%m-%d %T'`"
+  git commit -m "[skip ci] automatically update on `date +'%Y-%m-%d %T'`" || echo "INFO: SKIP"
   git push --quiet "https://${GITHUB_TOKEN}@github.com/pexcn/shadowsocks-android.git" gh-pages
 
   popd
