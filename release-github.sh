@@ -22,7 +22,7 @@ release() {
 push() {
   pushd shadowsocks-release
   git add --all
-  git commit -m "`date +'%Y-%m-%d %T'`"
+  git commit -m "[skip ci] `date +'%Y-%m-%d %T'`"
   git push --quiet "https://${GITHUB_TOKEN}@github.com/pexcn/shadowsocks-android.git" HEAD:release
   popd
 }
