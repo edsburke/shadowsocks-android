@@ -22,5 +22,13 @@ function gen_gfwlist_acl() {
   popd
 }
 
+function gen_china_list_acl() {
+  pushd gen
+  cp ../template/china-list.acl china-list.acl
+  sed -i "s/___CHNROUTE_LIST_PLACEHOLDER___/cat chnroute.txt/e" china-list.acl
+  popd
+}
+
 fetch_data
 gen_gfwlist_acl
+gen_china_list_acl
