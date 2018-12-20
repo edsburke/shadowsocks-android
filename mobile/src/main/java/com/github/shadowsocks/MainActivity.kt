@@ -28,6 +28,7 @@ import android.net.VpnService
 import android.nfc.NdefMessage
 import android.nfc.NfcAdapter
 import android.os.Bundle
+import android.os.DeadObjectException
 import android.util.Log
 import android.view.KeyCharacterMap
 import android.view.KeyEvent
@@ -39,7 +40,6 @@ import androidx.coordinatorlayout.widget.CoordinatorLayout
 import androidx.core.content.ContextCompat
 import androidx.core.net.toUri
 import androidx.core.view.GravityCompat
-import androidx.core.view.updateLayoutParams
 import androidx.drawerlayout.widget.DrawerLayout
 import androidx.preference.PreferenceDataStore
 import com.crashlytics.android.Crashlytics
@@ -57,7 +57,6 @@ import com.github.shadowsocks.widget.ServiceButton
 import com.github.shadowsocks.widget.StatsBar
 import com.google.android.material.navigation.NavigationView
 import com.google.android.material.snackbar.Snackbar
-import kotlin.math.roundToInt
 
 class MainActivity : AppCompatActivity(), ShadowsocksConnection.Interface, OnPreferenceDataStoreChangeListener,
         NavigationView.OnNavigationItemSelectedListener {
@@ -76,9 +75,7 @@ class MainActivity : AppCompatActivity(), ShadowsocksConnection.Interface, OnPre
 
     val snackbar by lazy { findViewById<CoordinatorLayout>(R.id.snackbar) }
     fun snackbar(text: CharSequence = "") = Snackbar.make(snackbar, text, Snackbar.LENGTH_LONG).apply {
-        view.updateLayoutParams<CoordinatorLayout.LayoutParams> {
-            bottomMargin += snackbar.measuredHeight - fab.top - fab.translationY.roundToInt()
-        }
+        view.translationY += fab.top + fab.translationY - snackbar.measuredHeight
     }
 
     private val customTabsIntent by lazy {
@@ -121,7 +118,11 @@ class MainActivity : AppCompatActivity(), ShadowsocksConnection.Interface, OnPre
     }
 
     override val listenForDeath: Boolean get() = true
-    override fun onServiceConnected(service: IShadowsocksService) = changeState(service.state)
+    override fun onServiceConnected(service: IShadowsocksService) = changeState(try {
+        service.state
+    } catch (_: DeadObjectException) {
+        BaseService.IDLE
+    })
     override fun onServiceDisconnected() = changeState(BaseService.IDLE)
     override fun binderDied() {
         super.binderDied()

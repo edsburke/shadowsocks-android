@@ -191,7 +191,7 @@ object BaseService {
                         .put("plugin_opts", plugin.toString())
             }
             // sensitive Shadowsocks config is stored in
-            return File((if (Build.VERSION.SDK_INT < 24 || app.getSystemService<UserManager>()?.isUserUnlocked != true)
+            return File((if (Build.VERSION.SDK_INT < 24 || app.getSystemService<UserManager>()?.isUserUnlocked != false)
                 app else Core.deviceStorage).noBackupFilesDir, CONFIG_FILE).apply {
                 shadowsocksConfigFile = this
                 writeText(config.toString())
@@ -392,7 +392,12 @@ object BaseService {
                     // it's hard to resolve DNS on a specific interface so we'll do it here
                     if (!profile.host.isNumericAddress()) {
                         thread("BaseService-resolve") {
-                            profile.host = InetAddress.getByName(profile.host).hostAddress ?: ""
+                            // A WAR fix for Huawei devices that UnknownHostException cannot be caught correctly
+                            try {
+                                profile.host = InetAddress.getByName(profile.host).hostAddress ?: ""
+                            } catch (_: UnknownHostException) {
+                                profile.host = "";
+                            }
                         }.join(10 * 1000)
                         if (!profile.host.isNumericAddress()) throw UnknownHostException()
                     }
