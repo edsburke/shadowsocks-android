@@ -22,8 +22,8 @@ android {
         applicationId "com.github.shadowsocks"
         minSdkVersion rootProject.minSdkVersion
         targetSdkVersion rootProject.sdkVersion
-        versionCode 4060300
-        versionName "4.6.3"
+        versionCode 4060400
+        versionName "4.6.4"
         testApplicationId "com.github.shadowsocks.test"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         resConfigs "fa", "fr", "ja", "ko", "ru", "tr", "zh-rCN", "zh-rTW"
@@ -65,7 +65,7 @@ android {
 dependencies {
     implementation project(':core')
     implementation "androidx.browser:browser:1.0.0"
-    implementation 'com.google.firebase:firebase-ml-vision:18.0.2'
+    implementation 'com.google.android.gms:play-services-vision:17.0.2'
     implementation "com.takisoft.preferencex:preferencex-simplemenu:$preferencexVersion"
     implementation 'com.twofortyfouram:android-plugin-api-for-locale:1.0.4'
     implementation 'net.glxn.qrgen:android:2.0'
