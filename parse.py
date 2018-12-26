@@ -6,7 +6,6 @@ import urlparse
 import socket
 import logging
 from argparse import ArgumentParser
-from datetime import date
 
 __all__ = ['main']
 
@@ -81,7 +80,6 @@ def parse_gfwlist(content):
 def generate_acl(domains):
     header ="""#
 # GFW list from https://github.com/gfwlist/gfwlist/blob/master/gfwlist.txt
-# updated on DATE
 #
 
 [bypass_all]
@@ -96,7 +94,6 @@ def generate_acl(domains):
 109.239.140.0/24
 149.154.160.0/20
 """
-    header = header.replace('DATE', str(date.today()))
     proxy_content = ""
     ip_content = ""
 
