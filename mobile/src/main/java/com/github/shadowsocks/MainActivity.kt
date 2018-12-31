@@ -85,7 +85,9 @@ class MainActivity : AppCompatActivity(), ShadowsocksConnection.Interface, OnPre
     }
     fun launchUrl(uri: String) = try {
         customTabsIntent.launchUrl(this, uri.toUri())
-    } catch (_: ActivityNotFoundException) { }  // ignore
+    } catch (_: ActivityNotFoundException) {
+        snackbar(uri).show()
+    }
 
     // service
     var state = BaseService.IDLE
@@ -115,6 +117,16 @@ class MainActivity : AppCompatActivity(), ShadowsocksConnection.Interface, OnPre
         this.state = state
         ProfilesFragment.instance?.profilesAdapter?.notifyDataSetChanged()  // refresh button enabled state
         stateListener?.invoke(state)
+    }
+
+    private fun toggle() = when {
+        state == BaseService.CONNECTED -> Core.stopService()
+        BaseService.usingVpnMode -> {
+            val intent = VpnService.prepare(this)
+            if (intent != null) startActivityForResult(intent, REQUEST_CONNECT)
+            else onActivityResult(REQUEST_CONNECT, Activity.RESULT_OK, null)
+        }
+        else -> Core.startService()
     }
 
     override val listenForDeath: Boolean get() = true
@@ -158,17 +170,7 @@ class MainActivity : AppCompatActivity(), ShadowsocksConnection.Interface, OnPre
         }
 
         fab = findViewById(R.id.fab)
-        fab.setOnClickListener {
-            when {
-                state == BaseService.CONNECTED -> Core.stopService()
-                BaseService.usingVpnMode -> {
-                    val intent = VpnService.prepare(this)
-                    if (intent != null) startActivityForResult(intent, REQUEST_CONNECT)
-                    else onActivityResult(REQUEST_CONNECT, Activity.RESULT_OK, null)
-                }
-                else -> Core.startService()
-            }
-        }
+        fab.setOnClickListener { toggle() }
 
         changeState(BaseService.IDLE)   // reset everything to init state
         Core.handler.post { connection.connect() }
@@ -242,11 +244,6 @@ class MainActivity : AppCompatActivity(), ShadowsocksConnection.Interface, OnPre
         return true
     }
 
-    override fun onResume() {
-        super.onResume()
-        Core.remoteConfig.fetch()
-    }
-
     override fun onStart() {
         super.onStart()
         connection.listeningForBandwidth = true
@@ -264,12 +261,20 @@ class MainActivity : AppCompatActivity(), ShadowsocksConnection.Interface, OnPre
         }
     }
 
-    override fun onKeyShortcut(keyCode: Int, event: KeyEvent?) =
-            (supportFragmentManager.findFragmentById(R.id.fragment_holder) as ToolbarFragment).toolbar.menu.let {
-                it.setQwertyMode(KeyCharacterMap.load(event?.deviceId ?: KeyCharacterMap.VIRTUAL_KEYBOARD).keyboardType
-                        != KeyCharacterMap.NUMERIC)
-                it.performShortcut(keyCode, event, 0)
-            }
+    override fun onKeyShortcut(keyCode: Int, event: KeyEvent) = when {
+        keyCode == KeyEvent.KEYCODE_G && event.hasModifiers(KeyEvent.META_CTRL_ON) -> {
+            toggle()
+            true
+        }
+        keyCode == KeyEvent.KEYCODE_T && event.hasModifiers(KeyEvent.META_CTRL_ON) -> {
+            stats.testConnection()
+            true
+        }
+        else -> (supportFragmentManager.findFragmentById(R.id.fragment_holder) as ToolbarFragment).toolbar.menu.let {
+            it.setQwertyMode(KeyCharacterMap.load(event.deviceId).keyboardType != KeyCharacterMap.NUMERIC)
+            it.performShortcut(keyCode, event, 0)
+        }
+    }
 
     override fun onStop() {
         connection.listeningForBandwidth = false

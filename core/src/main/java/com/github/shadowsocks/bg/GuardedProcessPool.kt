@@ -24,6 +24,7 @@ import android.os.Build
 import android.os.SystemClock
 import android.system.ErrnoException
 import android.system.Os
+import android.system.OsConstants
 import android.util.Log
 import com.crashlytics.android.Crashlytics
 import com.github.shadowsocks.Core
@@ -40,8 +41,10 @@ class GuardedProcessPool {
     companion object Dummy : IOException("Oopsie the developer has made a no-no") {
         private const val TAG = "GuardedProcessPool"
         private val ProcessImpl by lazy { Class.forName("java.lang.ProcessManager\$ProcessImpl") }
-        private val pid by lazy { ProcessImpl.getField("pid").apply { isAccessible = true } }
-        private val exitValueMutex by lazy { ProcessImpl.getField("exitValueMutex").apply { isAccessible = true } }
+        private val pid by lazy { ProcessImpl.getDeclaredField("pid").apply { isAccessible = true } }
+        private val exitValueMutex by lazy {
+            ProcessImpl.getDeclaredField("exitValueMutex").apply { isAccessible = true }
+        }
     }
 
     private inner class Guard(private val cmd: List<String>, private val onRestartCallback: (() -> Unit)?) {
@@ -96,9 +99,9 @@ class GuardedProcessPool {
                     if (Build.VERSION.SDK_INT < 24) {
                         val pid = pid.get(process) as Int
                         try {
-                            Os.kill(pid, 15)            // SIGTERM
+                            Os.kill(pid, OsConstants.SIGTERM)
                         } catch (e: ErrnoException) {
-                            if (e.errno != 3) throw e   // ESRCH
+                            if (e.errno != OsConstants.ESRCH) throw e
                         }
                         val mutex = exitValueMutex.get(process) as Object
                         synchronized(mutex) {

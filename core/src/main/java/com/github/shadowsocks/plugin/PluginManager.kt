@@ -26,21 +26,25 @@ import android.content.ContentResolver
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.content.pm.Signature
+import android.database.Cursor
 import android.net.Uri
+import android.system.Os
 import android.util.Base64
 import android.util.Log
 import androidx.core.os.bundleOf
 import com.crashlytics.android.Crashlytics
 import com.github.shadowsocks.Core
 import com.github.shadowsocks.Core.app
-import com.github.shadowsocks.utils.Commandline
 import com.github.shadowsocks.utils.printLog
 import com.github.shadowsocks.utils.signaturesCompat
-import eu.chainfire.libsuperuser.Shell
 import java.io.File
 import java.io.FileNotFoundException
 
 object PluginManager {
+    class PluginNotFoundException(private val plugin: String) : FileNotFoundException(plugin) {
+        override fun getLocalizedMessage() = app.getString(com.github.shadowsocks.core.R.string.plugin_unknown, plugin)
+    }
+
     /**
      * Trusted signatures by the app. Third-party fork should add their public key to their fork if the developer wishes
      * to publish or has published plugins for this app. You can obtain your public key by executing:
@@ -128,8 +132,7 @@ object PluginManager {
 
         // add other plugin types here
 
-        throw throwable
-                ?: FileNotFoundException(app.getString(com.github.shadowsocks.core.R.string.plugin_unknown, options.id))
+        throw throwable ?: PluginNotFoundException(options.id)
     }
 
     private fun initNative(options: PluginOptions): String? {
@@ -162,7 +165,6 @@ object PluginManager {
     private fun initNativeSlow(cr: ContentResolver, options: PluginOptions, uri: Uri): String? {
         var initialized = false
         fun entryNotFound(): Nothing = throw IndexOutOfBoundsException("Plugin entry binary not found")
-        val list = ArrayList<String>()
         val pluginDir = File(Core.deviceStorage.noBackupFilesDir, "plugin")
         (cr.query(uri, arrayOf(PluginContract.COLUMN_PATH, PluginContract.COLUMN_MODE), null, null, null)
                 ?: return null).use { cursor ->
@@ -177,12 +179,15 @@ object PluginManager {
                 cr.openInputStream(uri.buildUpon().path(path).build())!!.use { inStream ->
                     file.outputStream().use { outStream -> inStream.copyTo(outStream) }
                 }
-                list += Commandline.toString(arrayOf("chmod", cursor.getString(1), file.absolutePath))
+                Os.chmod(file.absolutePath, when (cursor.getType(1)) {
+                    Cursor.FIELD_TYPE_INTEGER -> cursor.getInt(1)
+                    Cursor.FIELD_TYPE_STRING -> cursor.getString(1).toInt(8)
+                    else -> throw IllegalArgumentException("File mode should be of type int")
+                })
                 if (path == options.id) initialized = true
             } while (cursor.moveToNext())
         }
         if (!initialized) entryNotFound()
-        Shell.SH.run(list)
         return File(pluginDir, options.id).absolutePath
     }
 }

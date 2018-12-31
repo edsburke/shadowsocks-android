@@ -166,6 +166,7 @@ class CustomRulesFragment : ToolbarFragment(), Toolbar.OnMenuItemClickListener, 
         private val text = view.findViewById<TextView>(android.R.id.text1)
 
         init {
+            view.isFocusable = true
             view.setOnClickListener(this)
             view.setOnLongClickListener(this)
             view.setBackgroundResource(R.drawable.background_selectable)
@@ -428,7 +429,7 @@ class CustomRulesFragment : ToolbarFragment(), Toolbar.OnMenuItemClickListener, 
                 check(adapter.addToProxy(clipboard.primaryClip!!.getItemAt(0).text.toString()) != null)
             } catch (exc: Exception) {
                 (activity as MainActivity).snackbar().setText(R.string.action_import_err).show()
-                printLog(exc)
+                exc.printStackTrace()
             }
             true
         }

@@ -170,10 +170,13 @@ class MainPreferenceFragment : LeanbackPreferenceFragment(), ShadowsocksConnecti
         tfo = findPreference(Key.tfo) as SwitchPreference
         tfo.isChecked = DataStore.tcpFastOpen
         tfo.setOnPreferenceChangeListener { _, value ->
-            if (value as Boolean) {
-                val result = TcpFastOpen.enabled(true)
-                if (result != null && result != "Success.") Toast.makeText(activity, result, Toast.LENGTH_LONG).show()
-                TcpFastOpen.sendEnabled
+            if (value as Boolean && !TcpFastOpen.sendEnabled) {
+                val result = TcpFastOpen.enable()?.trim()
+                if (TcpFastOpen.sendEnabled) true else {
+                    Toast.makeText(activity, if (result.isNullOrEmpty())
+                        getText(R.string.tcp_fastopen_failure) else result, Toast.LENGTH_SHORT).show()
+                    false
+                }
             } else true
         }
         if (!TcpFastOpen.supported) {
@@ -272,13 +275,9 @@ class MainPreferenceFragment : LeanbackPreferenceFragment(), ShadowsocksConnecti
     private fun startFilesForResult(intent: Intent?, requestCode: Int) {
         try {
             startActivityForResult(intent, requestCode)
-        } catch (e: ActivityNotFoundException) {
-            Crashlytics.logException(e)
-            Toast.makeText(activity, R.string.file_manager_missing, Toast.LENGTH_SHORT).show()
-        } catch (e: SecurityException) {
-            Crashlytics.logException(e)
-            Toast.makeText(activity, R.string.file_manager_missing, Toast.LENGTH_SHORT).show()
-        }
+            return
+        } catch (_: ActivityNotFoundException) { } catch (_: SecurityException) { }
+        Toast.makeText(activity, R.string.file_manager_missing, Toast.LENGTH_SHORT).show()
     }
 
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {

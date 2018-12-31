@@ -1,7 +1,7 @@
 /*******************************************************************************
  *                                                                             *
- *  Copyright (C) 2017 by Max Lv <max.c.lv@gmail.com>                          *
- *  Copyright (C) 2017 by Mygod Studio <contact-shadowsocks-android@mygod.be>  *
+ *  Copyright (C) 2018 by Max Lv <max.c.lv@gmail.com>                          *
+ *  Copyright (C) 2018 by Mygod Studio <contact-shadowsocks-android@mygod.be>  *
  *                                                                             *
  *  This program is free software: you can redistribute it and/or modify       *
  *  it under the terms of the GNU General Public License as published by       *
@@ -18,36 +18,24 @@
  *                                                                             *
  *******************************************************************************/
 
-package com.github.shadowsocks.plugin
+package com.github.shadowsocks.bg
 
-import android.database.MatrixCursor
-import android.net.Uri
-import java.io.File
+import android.util.Log
+import androidx.core.os.bundleOf
+import com.github.shadowsocks.Core
+import com.github.shadowsocks.core.R
+import com.google.firebase.remoteconfig.FirebaseRemoteConfig
 
-/**
- * Helper class to provide relative paths of files to copy.
- */
-class PathProvider internal constructor(baseUri: Uri, private val cursor: MatrixCursor) {
-    private val basePath = baseUri.path?.trim('/') ?: ""
+object RemoteConfig {
+    private val config = FirebaseRemoteConfig.getInstance().apply { setDefaults(R.xml.default_configs) }
 
-    fun addPath(path: String, mode: Int = 0b110100100): PathProvider {
-        val trimmed = path.trim('/')
-        if (trimmed.startsWith(basePath)) cursor.newRow()
-                .add(PluginContract.COLUMN_PATH, trimmed)
-                .add(PluginContract.COLUMN_MODE, mode)
-        return this
-    }
-    fun addTo(file: File, to: String = "", mode: Int = 0b110100100): PathProvider {
-        var sub = to + file.name
-        if (basePath.startsWith(sub)) if (file.isDirectory) {
-            sub += '/'
-            file.listFiles().forEach { addTo(it, sub, mode) }
-        } else addPath(sub, mode)
-        return this
-    }
-    fun addAt(file: File, at: String = "", mode: Int = 0b110100100): PathProvider {
-        if (basePath.startsWith(at))
-            if (file.isDirectory) file.listFiles().forEach { addTo(it, at, mode) } else addPath(at, mode)
-        return this
+    val proxyUrl get() = config.getString("proxy_url")
+
+    fun fetch() = config.fetch().addOnCompleteListener {
+        if (it.isSuccessful) config.activateFetched() else {
+            val e = it.exception ?: return@addOnCompleteListener
+            Log.w("RemoteConfig", e)
+            Core.analytics.logEvent("femote_config_failure", bundleOf(Pair(e.javaClass.simpleName, e.message)))
+        }
     }
 }

@@ -35,10 +35,10 @@ import android.os.Build
 import android.os.Handler
 import android.os.Looper
 import android.os.UserManager
-import android.util.Log
 import androidx.annotation.RequiresApi
 import androidx.core.content.ContextCompat
 import androidx.core.content.getSystemService
+import androidx.work.Configuration
 import androidx.work.WorkManager
 import com.crashlytics.android.Crashlytics
 import com.github.shadowsocks.acl.Acl
@@ -50,7 +50,6 @@ import com.github.shadowsocks.preference.DataStore
 import com.github.shadowsocks.utils.*
 import com.google.firebase.FirebaseApp
 import com.google.firebase.analytics.FirebaseAnalytics
-import com.google.firebase.remoteconfig.FirebaseRemoteConfig
 import io.fabric.sdk.android.Fabric
 import java.io.File
 import java.io.IOException
@@ -64,7 +63,6 @@ object Core {
     val handler by lazy { Handler(Looper.getMainLooper()) }
     val packageInfo: PackageInfo by lazy { getPackageInfo(app.packageName) }
     val deviceStorage by lazy { if (Build.VERSION.SDK_INT < 24) app else DeviceStorageApp(app) }
-    val remoteConfig: FirebaseRemoteConfig by lazy { FirebaseRemoteConfig.getInstance() }
     val analytics: FirebaseAnalytics by lazy { FirebaseAnalytics.getInstance(deviceStorage) }
     val directBootSupported by lazy {
         Build.VERSION.SDK_INT >= 24 && app.getSystemService<DevicePolicyManager>()?.storageEncryptionStatus ==
@@ -98,19 +96,12 @@ object Core {
 
         Fabric.with(deviceStorage, Crashlytics())   // multiple processes needs manual set-up
         FirebaseApp.initializeApp(deviceStorage)
-        remoteConfig.setDefaults(R.xml.default_configs)
-        remoteConfig.fetch().addOnCompleteListener {
-            if (it.isSuccessful) remoteConfig.activateFetched() else {
-                Log.e(TAG, "Failed to fetch config")
-                Crashlytics.logException(it.exception)
-            }
-        }
-        WorkManager.initialize(deviceStorage, androidx.work.Configuration.Builder().build())
+        WorkManager.initialize(deviceStorage, Configuration.Builder().build())
 
         // handle data restored/crash
         if (Build.VERSION.SDK_INT >= 24 && DataStore.directBootAware &&
                 app.getSystemService<UserManager>()?.isUserUnlocked == true) DirectBoot.flushTrafficStats()
-        if (DataStore.tcpFastOpen) TcpFastOpen.enabledAsync(true)
+        if (DataStore.tcpFastOpen && !TcpFastOpen.sendEnabled) TcpFastOpen.enableAsync()
         if (DataStore.publicStore.getLong(Key.assetUpdateTime, -1) != packageInfo.lastUpdateTime) {
             val assetManager = app.assets
             for (dir in arrayOf("acl", "overture"))
