@@ -2138,6 +2138,7 @@
 103.132.104.0/21
 103.132.112.0/21
 103.132.120.0/22
+103.132.160.0/21
 103.192.0.0/19
 103.192.48.0/21
 103.192.56.0/22
@@ -6252,6 +6253,7 @@
 (^|\.)cloakpoint\.com$
 (^|\.)cloud\.mail\.ru$
 (^|\.)club1069\.com$
+(^|\.)clyp\.it$
 (^|\.)cmcn\.org$
 (^|\.)cmi\.org\.tw$
 (^|\.)cmp\.hku\.hk$
@@ -6746,6 +6748,7 @@
 (^|\.)eucasino\.com$
 (^|\.)eulam\.com$
 (^|\.)eurekavpt\.com$
+(^|\.)euronews\.com$
 (^|\.)evchk\.wikia\.com$
 (^|\.)evschool\.net$
 (^|\.)exblog\.jp$
@@ -8012,6 +8015,7 @@
 (^|\.)llss\.me$
 (^|\.)load\.to$
 (^|\.)lobsangwangyal\.com$
+(^|\.)localbitcoins\.com$
 (^|\.)localdomain\.ws$
 (^|\.)localpresshk\.com$
 (^|\.)lockestek\.com$
@@ -8104,6 +8108,7 @@
 (^|\.)matome-plus\.com$
 (^|\.)matome-plus\.net$
 (^|\.)matsushimakaede\.com$
+(^|\.)matters\.news$
 (^|\.)mattwilcox\.net$
 (^|\.)maturejp\.com$
 (^|\.)maxing\.jp$
@@ -8965,6 +8970,7 @@
 (^|\.)redchinacn\.org$
 (^|\.)redd\.it$
 (^|\.)reddit\.com$
+(^|\.)redditlist\.com$
 (^|\.)redditmedia\.com$
 (^|\.)redditstatic\.com$
 (^|\.)redhotlabs\.com$
@@ -9742,6 +9748,7 @@
 (^|\.)tosh\.comedycentral\.com$
 (^|\.)totalvpn\.com$
 (^|\.)toutiaoabc\.com$
+(^|\.)toutyrater\.github\.io$
 (^|\.)towngain\.com$
 (^|\.)toypark\.in$
 (^|\.)toythieves\.com$
@@ -10177,6 +10184,7 @@
 (^|\.)vrsmash\.com$
 (^|\.)vtunnel\.com$
 (^|\.)vuku\.cc$
+(^|\.)vultryhw\.com$
 (^|\.)w\.idaiwan\.com$
 (^|\.)w3schools\.com$
 (^|\.)waffle1999\.com$
