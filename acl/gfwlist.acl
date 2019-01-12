@@ -1364,6 +1364,7 @@
 (^|\.)eksisozluk\.com$
 (^|\.)electionsmeter\.com$
 (^|\.)elgoog\.im$
+(^|\.)ellawine\.org$
 (^|\.)elpais\.com$
 (^|\.)eltondisney\.com$
 (^|\.)emaga\.com$
@@ -2127,6 +2128,7 @@
 (^|\.)hkfaa\.com$
 (^|\.)hkfreezone\.com$
 (^|\.)hkfront\.org$
+(^|\.)hkgalden\.com$
 (^|\.)hkgolden\.com$
 (^|\.)hkgreenradio\.org$
 (^|\.)hkheadline\.com$
@@ -4127,6 +4129,7 @@
 (^|\.)suyangg\.com$
 (^|\.)svsfx\.com$
 (^|\.)swagbucks\.com$
+(^|\.)swissinfo\.ch$
 (^|\.)swissvpn\.net$
 (^|\.)switch1\.jp$
 (^|\.)switchvpn\.net$
@@ -4753,6 +4756,7 @@
 (^|\.)vanilla-jp\.com$
 (^|\.)vanpeople\.com$
 (^|\.)vansky\.com$
+(^|\.)vaticannews\.va$
 (^|\.)vatn\.org$
 (^|\.)vcf-online\.org$
 (^|\.)vcfbuilder\.org$
