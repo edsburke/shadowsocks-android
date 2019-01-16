@@ -30,7 +30,11 @@ import android.os.DeadObjectException
 import android.text.format.Formatter
 import android.util.Log
 import android.widget.Toast
+import androidx.fragment.app.FragmentActivity
 import androidx.leanback.preference.LeanbackPreferenceFragment
+import androidx.lifecycle.Observer
+import androidx.lifecycle.ViewModelProviders
+import androidx.lifecycle.get
 import androidx.preference.ListPreference
 import androidx.preference.Preference
 import androidx.preference.PreferenceDataStore
@@ -41,6 +45,7 @@ import com.github.shadowsocks.Core
 import com.github.shadowsocks.ShadowsocksConnection
 import com.github.shadowsocks.aidl.IShadowsocksService
 import com.github.shadowsocks.aidl.IShadowsocksServiceCallback
+import com.github.shadowsocks.aidl.TrafficStats
 import com.github.shadowsocks.bg.BaseService
 import com.github.shadowsocks.bg.Executable
 import com.github.shadowsocks.database.Profile
@@ -79,9 +84,7 @@ class MainPreferenceFragment : LeanbackPreferenceFragment(), ShadowsocksConnecti
         portTransproxy.isEnabled = enabledTransproxy
         true
     }
-    private val tester by lazy {
-        HttpsTest(stats::setTitle) { Toast.makeText(activity, it, Toast.LENGTH_LONG).show() }
-    }
+    private lateinit var tester: HttpsTest
 
     // service
     var state = BaseService.IDLE
@@ -91,11 +94,12 @@ class MainPreferenceFragment : LeanbackPreferenceFragment(), ShadowsocksConnecti
             override fun stateChanged(state: Int, profileName: String?, msg: String?) {
                 Core.handler.post { changeState(state, msg) }
             }
-            override fun trafficUpdated(profileId: Long, txRate: Long, rxRate: Long, txTotal: Long, rxTotal: Long) {
-                stats.summary = getString(R.string.stat_summary,
-                        getString(R.string.speed, Formatter.formatFileSize(activity, txRate)),
-                        getString(R.string.speed, Formatter.formatFileSize(activity, rxRate)),
-                        Formatter.formatFileSize(activity, txTotal), Formatter.formatFileSize(activity, rxTotal))
+            override fun trafficUpdated(profileId: Long, stats: TrafficStats) {
+                if (profileId == 0L) this@MainPreferenceFragment.stats.summary = getString(R.string.stat_summary,
+                        getString(R.string.speed, Formatter.formatFileSize(activity, stats.txRate)),
+                        getString(R.string.speed, Formatter.formatFileSize(activity, stats.rxRate)),
+                        Formatter.formatFileSize(activity, stats.txTotal),
+                        Formatter.formatFileSize(activity, stats.rxTotal))
             }
             override fun trafficPersisted(profileId: Long) { }
         }
@@ -111,10 +115,14 @@ class MainPreferenceFragment : LeanbackPreferenceFragment(), ShadowsocksConnecti
         })
         stats.setTitle(R.string.connection_test_pending)
         stats.isVisible = state == BaseService.CONNECTED
+        val owner = activity as FragmentActivity    // TODO: change to this when refactored to androidx
         if (state != BaseService.CONNECTED) {
-            serviceCallback.trafficUpdated(0, 0, 0, 0, 0)
-            tester.invalidate()
-        }
+            serviceCallback.trafficUpdated(0, TrafficStats())
+            tester.status.removeObservers(owner)
+            if (state != BaseService.IDLE) tester.invalidate()
+        } else tester.status.observe(owner, Observer {
+            it.retrieve(stats::setTitle) { Toast.makeText(activity, it, Toast.LENGTH_LONG).show() }
+        })
         if (msg != null) Toast.makeText(activity, getString(R.string.vpn_error, msg), Toast.LENGTH_SHORT).show()
         this.state = state
         if (state == BaseService.STOPPED) {
@@ -195,6 +203,7 @@ class MainPreferenceFragment : LeanbackPreferenceFragment(), ShadowsocksConnecti
             true
         }
 
+        tester = ViewModelProviders.of(activity as FragmentActivity).get()
         changeState(BaseService.IDLE)   // reset everything to init state
         connection.connect()
         DataStore.publicStore.registerChangeListener(this)
@@ -293,7 +302,7 @@ class MainPreferenceFragment : LeanbackPreferenceFragment(), ShadowsocksConnecti
                 ProfileManager.clear()
                 for (uri in data!!.datas) try {
                     Profile.parseJson(activity.contentResolver.openInputStream(uri)!!.bufferedReader().readText(),
-                            feature).forEach {
+                            feature) {
                         // if two profiles has the same address, treat them as the same profile and copy stats over
                         profiles?.get(it.formattedAddress)?.apply {
                             it.tx = tx
@@ -311,8 +320,9 @@ class MainPreferenceFragment : LeanbackPreferenceFragment(), ShadowsocksConnecti
                 if (resultCode != Activity.RESULT_OK) return
                 val profiles = ProfileManager.getAllProfiles()
                 if (profiles != null) try {
+                    val lookup = profiles.associateBy { it.id }
                     activity.contentResolver.openOutputStream(data?.data!!)!!.bufferedWriter().use {
-                        it.write(JSONArray(profiles.map { it.toJson() }.toTypedArray()).toString(2))
+                        it.write(JSONArray(profiles.map { it.toJson(lookup) }.toTypedArray()).toString(2))
                     }
                 } catch (e: Exception) {
                     printLog(e)

@@ -35,7 +35,7 @@ object LocalDnsService {
         override fun startNativeProcesses() {
             super.startNativeProcesses()
             val data = data
-            val profile = data.profile!!
+            val profile = data.proxy!!.profile
 
             fun makeDns(name: String, address: String, timeout: Int, edns: Boolean = true) = JSONObject().apply {
                 put("Name", name)
@@ -46,7 +46,7 @@ object LocalDnsService {
                 put("Timeout", timeout)
                 put("EDNSClientSubnet", JSONObject().put("Policy", "disable"))
                 put("Protocol", if (edns) {
-                    put("Socks5Address", "127.0.0.1:" + DataStore.portProxy)
+                    put("Socks5Address", "127.0.0.1:${DataStore.portProxy}")
                     "tcp"
                 } else "udp")
             }
@@ -70,6 +70,7 @@ object LocalDnsService {
                             put("PrimaryDNS", localDns)
                             put("AlternativeDNS", remoteDns)
                             put("IPNetworkFile", "china_ip_list.txt")
+                            put("DomainFile", "domain_exceptions.acl")
                         }
                         Acl.CHINALIST -> {
                             put("PrimaryDNS", localDns)

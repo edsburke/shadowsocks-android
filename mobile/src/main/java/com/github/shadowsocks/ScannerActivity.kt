@@ -21,6 +21,7 @@
 package com.github.shadowsocks
 
 import android.app.Activity
+import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.content.pm.ShortcutManager
 import android.hardware.camera2.CameraAccessException
@@ -61,7 +62,9 @@ class ScannerActivity : AppCompatActivity(), BarcodeRetriever {
     private lateinit var detector: BarcodeDetector
 
     private fun fallback() {
-        startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("market://details?id=tw.com.quickmark")))
+        try {
+            startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("market://details?id=tw.com.quickmark")))
+        } catch (_: ActivityNotFoundException) { }
         finish()
     }
 
@@ -102,7 +105,7 @@ class ScannerActivity : AppCompatActivity(), BarcodeRetriever {
     }
 
     override fun onRetrieved(barcode: Barcode) = runOnUiThread {
-        Profile.findAllUrls(barcode.rawValue, Core.currentProfile).forEach { ProfileManager.createProfile(it) }
+        Profile.findAllUrls(barcode.rawValue, Core.currentProfile?.first).forEach { ProfileManager.createProfile(it) }
         onSupportNavigateUp()
     }
     override fun onRetrievedMultiple(closetToClick: Barcode?, barcode: MutableList<BarcodeGraphic>?) = check(false)
@@ -133,7 +136,7 @@ class ScannerActivity : AppCompatActivity(), BarcodeRetriever {
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         when (requestCode) {
             REQUEST_IMPORT, REQUEST_IMPORT_OR_FINISH -> if (resultCode == Activity.RESULT_OK) {
-                val feature = Core.currentProfile
+                val feature = Core.currentProfile?.first
                 var success = false
                 for (uri in data!!.datas) try {
                     detector.detect(Frame.Builder().setBitmap(contentResolver.openBitmap(uri)).build())
