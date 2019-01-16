@@ -2141,6 +2141,7 @@
 103.132.160.0/21
 103.132.188.0/22
 103.132.208.0/21
+103.132.234.0/23
 103.192.0.0/19
 103.192.48.0/21
 103.192.56.0/22
@@ -5461,6 +5462,7 @@
 (^|\.)abc\.xyz$
 (^|\.)abchinese\.com$
 (^|\.)abclite\.net$
+(^|\.)abebooks\.com$
 (^|\.)abematv\.akamaized\.net$
 (^|\.)abitno\.linpie\.com$
 (^|\.)ablwang\.com$
@@ -5497,6 +5499,7 @@
 (^|\.)ae\.hao123\.com$
 (^|\.)ae\.org$
 (^|\.)aenhancers\.com$
+(^|\.)aex\.com$
 (^|\.)af\.mil$
 (^|\.)afantibbs\.com$
 (^|\.)agnesb\.fr$
@@ -5659,7 +5662,6 @@
 (^|\.)artofpeacefoundation\.org$
 (^|\.)artsy\.net$
 (^|\.)asacp\.org$
-(^|\.)asahichinese\.com$
 (^|\.)asdfg\.jp$
 (^|\.)asg\.to$
 (^|\.)asia-gaming\.com$
@@ -5841,6 +5843,7 @@
 (^|\.)bitcointalk\.org$
 (^|\.)bitcoinworld\.com$
 (^|\.)bitfinex\.com$
+(^|\.)bithumb\.com$
 (^|\.)bitinka\.com\.ar$
 (^|\.)bitmex\.com$
 (^|\.)bitshare\.com$
@@ -5916,6 +5919,7 @@
 (^|\.)blueangellive\.com$
 (^|\.)bmfinn\.com$
 (^|\.)bnews\.co$
+(^|\.)bnn\.co$
 (^|\.)bnrmetal\.com$
 (^|\.)boardreader\.com$
 (^|\.)bod\.asia$
@@ -5970,6 +5974,7 @@
 (^|\.)bt95\.com$
 (^|\.)btaia\.com$
 (^|\.)btbtav\.com$
+(^|\.)btc98\.com$
 (^|\.)btcbank\.bank$
 (^|\.)btctrade\.im$
 (^|\.)btdigg\.org$
@@ -5995,6 +6000,7 @@
 (^|\.)buzzhand\.net$
 (^|\.)buzzorange\.com$
 (^|\.)bvpn\.com$
+(^|\.)bwgyhw\.com$
 (^|\.)bwh1\.net$
 (^|\.)bwsj\.hk$
 (^|\.)bx\.in\.th$
@@ -6063,6 +6069,7 @@
 (^|\.)cclife\.org$
 (^|\.)cclifefl\.org$
 (^|\.)ccthere\.com$
+(^|\.)ccthere\.net$
 (^|\.)cctmweb\.net$
 (^|\.)cctongbao\.com$
 (^|\.)ccue\.ca$
@@ -6298,16 +6305,19 @@
 (^|\.)cnproxy\.com$
 (^|\.)co\.ng\.mil$
 (^|\.)coat\.co\.jp$
+(^|\.)cobinhood\.com$
 (^|\.)cochina\.co$
 (^|\.)cochina\.org$
 (^|\.)code1984\.com$
 (^|\.)codeshare\.io$
 (^|\.)codeskulptor\.org$
 (^|\.)coin2co\.in$
+(^|\.)coinbene\.com$
 (^|\.)coinegg\.com$
 (^|\.)coinex\.com$
 (^|\.)coingi\.com$
 (^|\.)coinrail\.co\.kr$
+(^|\.)cointiger\.com$
 (^|\.)cointobe\.com$
 (^|\.)coinut\.com$
 (^|\.)collateralmurder\.com$
@@ -6557,6 +6567,7 @@
 (^|\.)dotsub\.com$
 (^|\.)dotvpn\.com$
 (^|\.)doub\.io$
+(^|\.)doubibackup\.com$
 (^|\.)doubmirror\.cf$
 (^|\.)dougscripts\.com$
 (^|\.)douhokanko\.net$
@@ -7339,6 +7350,7 @@
 (^|\.)hautelook\.com$
 (^|\.)hautelookcdn\.com$
 (^|\.)have8\.com$
+(^|\.)hbg\.com$
 (^|\.)hbo\.com$
 (^|\.)hclips\.com$
 (^|\.)hd\.stheadline\.com$
@@ -7703,6 +7715,7 @@
 (^|\.)is\.gd$
 (^|\.)isaacmao\.com$
 (^|\.)isasecret\.com$
+(^|\.)isc\.sans\.edu$
 (^|\.)isgreat\.org$
 (^|\.)islahhaber\.net$
 (^|\.)islam\.org\.hk$
@@ -7798,6 +7811,7 @@
 (^|\.)jingsim\.org$
 (^|\.)jinpianwang\.com$
 (^|\.)jinroukong\.com$
+(^|\.)jintian\.net$
 (^|\.)jinx\.com$
 (^|\.)jitouch\.com$
 (^|\.)jizzthis\.com$
@@ -8153,6 +8167,7 @@
 (^|\.)memorybbs\.com$
 (^|\.)memri\.org$
 (^|\.)memrijttm\.org$
+(^|\.)mercatox\.com$
 (^|\.)mercyprophet\.org$
 (^|\.)meridian-trust\.org$
 (^|\.)meripet\.biz$
@@ -9108,6 +9123,7 @@
 (^|\.)search$
 (^|\.)search\.aol\.com$
 (^|\.)search\.yahoo\.co\.jp$
+(^|\.)search\.yahoo\.com$
 (^|\.)searchtruth\.com$
 (^|\.)secretchina\.com$
 (^|\.)secretgarden\.no$
@@ -9497,6 +9513,7 @@
 (^|\.)taiwanyes\.ning\.com$
 (^|\.)talk853\.com$
 (^|\.)talkboxapp\.com$
+(^|\.)talkcc\.com$
 (^|\.)talkonly\.net$
 (^|\.)tamiaode\.tk$
 (^|\.)tanc\.org$
@@ -9706,6 +9723,7 @@
 (^|\.)times\.hinet\.net$
 (^|\.)timesofindia\.indiatimes\.com$
 (^|\.)timsah\.com$
+(^|\.)tinc-vpn\.org$
 (^|\.)tineye\.com$
 (^|\.)tintuc101\.com$
 (^|\.)tiny\.cc$
@@ -10051,6 +10069,7 @@
 (^|\.)usus\.cc$
 (^|\.)utopianpal\.com$
 (^|\.)uu-gg\.com$
+(^|\.)uukanshu\.com$
 (^|\.)uvwxyz\.xyz$
 (^|\.)uwants\.com$
 (^|\.)uwants\.net$
