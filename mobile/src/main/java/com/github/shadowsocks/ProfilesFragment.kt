@@ -28,10 +28,8 @@ import android.nfc.NdefRecord
 import android.nfc.NfcAdapter
 import android.os.Bundle
 import android.text.format.Formatter
-import android.view.LayoutInflater
-import android.view.MenuItem
-import android.view.View
-import android.view.ViewGroup
+import android.util.LongSparseArray
+import android.view.*
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
@@ -98,7 +96,7 @@ class ProfilesFragment : ToolbarFragment(), Toolbar.OnMenuItemClickListener {
             return image
         }
 
-        override fun onAttach(context: Context?) {
+        override fun onAttach(context: Context) {
             super.onAttach(context)
             val adapter = NfcAdapter.getDefaultAdapter(context)
             adapter?.setNdefPushMessage(NdefMessage(arrayOf(
@@ -277,7 +275,7 @@ class ProfilesFragment : ToolbarFragment(), Toolbar.OnMenuItemClickListener {
 
     val profilesAdapter by lazy { ProfilesAdapter() }
     private lateinit var undoManager: UndoSnackbarManager<Profile>
-    private val statsCache = mutableMapOf<Long, TrafficStats>()
+    private val statsCache = LongSparseArray<TrafficStats>()
 
     private val clipboard by lazy { requireContext().getSystemService<ClipboardManager>()!! }
 
@@ -359,8 +357,9 @@ class ProfilesFragment : ToolbarFragment(), Toolbar.OnMenuItemClickListener {
             R.id.action_import_file -> {
                 startFilesForResult(Intent(Intent.ACTION_GET_CONTENT).apply {
                     addCategory(Intent.CATEGORY_OPENABLE)
-                    type = "application/json"
+                    type = "application/*"
                     putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true)
+                    putExtra(Intent.EXTRA_MIME_TYPES, arrayOf("application/*", "text/*"))
                 }, REQUEST_IMPORT_PROFILES)
                 true
             }
@@ -419,7 +418,7 @@ class ProfilesFragment : ToolbarFragment(), Toolbar.OnMenuItemClickListener {
             REQUEST_EXPORT_PROFILES -> {
                 val profiles = ProfileManager.getAllProfiles()
                 if (profiles != null) try {
-                    val lookup = profiles.associateBy { it.id }
+                    val lookup = LongSparseArray<Profile>(profiles.size).apply { profiles.forEach { put(it.id, it) } }
                     requireContext().contentResolver.openOutputStream(data?.data!!)!!.bufferedWriter().use {
                         it.write(JSONArray(profiles.map { it.toJson(lookup) }.toTypedArray()).toString(2))
                     }
@@ -434,7 +433,7 @@ class ProfilesFragment : ToolbarFragment(), Toolbar.OnMenuItemClickListener {
 
     override fun onTrafficUpdated(profileId: Long, stats: TrafficStats) {
         if (profileId != 0L) {  // ignore aggregate stats
-            statsCache[profileId] = stats
+            statsCache.put(profileId, stats)
             profilesAdapter.refreshId(profileId)
         }
     }

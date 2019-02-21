@@ -26,135 +26,99 @@ import android.system.ErrnoException
 import android.system.Os
 import android.system.OsConstants
 import android.util.Log
+import androidx.annotation.MainThread
 import com.crashlytics.android.Crashlytics
 import com.github.shadowsocks.Core
 import com.github.shadowsocks.utils.Commandline
-import com.github.shadowsocks.utils.thread
+import kotlinx.coroutines.*
+import kotlinx.coroutines.channels.Channel
 import java.io.File
 import java.io.IOException
 import java.io.InputStream
-import java.util.concurrent.ArrayBlockingQueue
-import java.util.concurrent.atomic.AtomicReference
-import java.util.concurrent.TimeUnit
+import kotlin.concurrent.thread
 
-class GuardedProcessPool {
-    companion object Dummy : IOException("Oopsie the developer has made a no-no") {
+class GuardedProcessPool(private val onFatal: suspend (IOException) -> Unit) : CoroutineScope {
+    companion object {
         private const val TAG = "GuardedProcessPool"
-        private val ProcessImpl by lazy { Class.forName("java.lang.ProcessManager\$ProcessImpl") }
-        private val pid by lazy { ProcessImpl.getDeclaredField("pid").apply { isAccessible = true } }
-        private val exitValueMutex by lazy {
-            ProcessImpl.getDeclaredField("exitValueMutex").apply { isAccessible = true }
+        private val pid by lazy {
+            Class.forName("java.lang.ProcessManager\$ProcessImpl").getDeclaredField("pid").apply { isAccessible = true }
         }
     }
 
-    private inner class Guard(private val cmd: List<String>, private val onRestartCallback: (() -> Unit)?) {
-        val cmdName = File(cmd.first()).nameWithoutExtension
-        val excQueue = ArrayBlockingQueue<IOException>(1)   // ArrayBlockingQueue doesn't want null
-        private var pushed = false
+    private inner class Guard(private val cmd: List<String>) {
+        private lateinit var process: Process
 
-        private fun streamLogger(input: InputStream, logger: (String, String) -> Int) =
-                thread("StreamLogger-$cmdName") {
-                    try {
-                        input.bufferedReader().forEachLine { logger(TAG, it) }
-                    } catch (_: IOException) { }    // ignore
-                }
-        private fun pushException(ioException: IOException?) {
-            if (pushed) return
-            excQueue.put(ioException ?: Dummy)
-            pushed = true
+        private fun streamLogger(input: InputStream, logger: (String) -> Unit) = try {
+            input.bufferedReader().forEachLine(logger)
+        } catch (_: IOException) { }    // ignore
+
+        fun start() {
+            process = ProcessBuilder(cmd).directory(Core.deviceStorage.noBackupFilesDir).start()
         }
 
-        fun looper(host: HashSet<Thread>) {
-            var process: Process? = null
+        suspend fun looper(onRestartCallback: (suspend () -> Unit)?) {
+            var running = true
+            val cmdName = File(cmd.first()).nameWithoutExtension
+            val exitChannel = Channel<Int>()
             try {
-                var callback: (() -> Unit)? = null
-                while (guardThreads.get() === host) {
-                    Crashlytics.log(Log.DEBUG, TAG, "start process: " + Commandline.toString(cmd))
-                    val startTime = SystemClock.elapsedRealtime()
-
-                    process = ProcessBuilder(cmd)
-                            .redirectErrorStream(true)
-                            .directory(Core.deviceStorage.noBackupFilesDir)
-                            .start()
-
-                    streamLogger(process.inputStream, Log::i)
-                    streamLogger(process.errorStream, Log::e)
-
-                    if (callback == null) callback = onRestartCallback else callback()
-
-                    pushException(null)
-                    process.waitFor()
-
-                    if (SystemClock.elapsedRealtime() - startTime < 1000) {
-                        Crashlytics.log(Log.WARN, TAG, "process exit too fast, stop guard: $cmdName")
-                        break
+                while (true) {
+                    thread(name = "stderr-$cmdName") { streamLogger(process.errorStream) { Log.e(cmdName, it) } }
+                    thread(name = "stdout-$cmdName") {
+                        streamLogger(process.inputStream) { Log.i(cmdName, it) }
+                        // this thread also acts as a daemon thread for waitFor
+                        runBlocking { exitChannel.send(process.waitFor()) }
                     }
+                    val startTime = SystemClock.elapsedRealtime()
+                    val exitCode = exitChannel.receive()
+                    running = false
+                    if (SystemClock.elapsedRealtime() - startTime < 1000) {
+                        throw IOException("$cmdName exits too fast (exit code: $exitCode)")
+                    }
+                    Crashlytics.log(Log.DEBUG, TAG,
+                            "restart process: ${Commandline.toString(cmd)} (last exit code: $exitCode)")
+                    start()
+                    running = true
+                    onRestartCallback?.invoke()
                 }
-            } catch (_: InterruptedException) {
-                Crashlytics.log(Log.DEBUG, TAG, "thread interrupt, destroy process: $cmdName")
             } catch (e: IOException) {
-                pushException(e)
+                Crashlytics.log(Log.WARN, TAG, "error occurred. stop guard: " + Commandline.toString(cmd))
+                GlobalScope.launch(Dispatchers.Main) { onFatal(e) }
             } finally {
-                if (process != null) {
+                if (running) withContext(NonCancellable) {  // clean-up cannot be cancelled
                     if (Build.VERSION.SDK_INT < 24) {
-                        val pid = pid.get(process) as Int
                         try {
-                            Os.kill(pid, OsConstants.SIGTERM)
+                            Os.kill(pid.get(process) as Int, OsConstants.SIGTERM)
                         } catch (e: ErrnoException) {
                             if (e.errno != OsConstants.ESRCH) throw e
                         }
-                        val mutex = exitValueMutex.get(process) as Object
-                        synchronized(mutex) {
-                            try {
-                                process.exitValue()
-                            } catch (e: IllegalThreadStateException) {
-                                mutex.wait(500)
-                            }
-                        }
+                        if (withTimeoutOrNull(500) { exitChannel.receive() } != null) return@withContext
                     }
-
-                    process.destroy() // kill the process
-
+                    process.destroy()                       // kill the process
                     if (Build.VERSION.SDK_INT >= 26) {
-                        val isKilled = process.waitFor(1L, TimeUnit.SECONDS) // wait for 1 second
-                        if (!isKilled) {
-                            process.destroyForcibly() // Force to kill the process if it's still alive
-                        }
+                        if (withTimeoutOrNull(1000) { exitChannel.receive() } != null) return@withContext
+                        process.destroyForcibly()           // Force to kill the process if it's still alive
                     }
-
-                    process.waitFor()   // ensure the process is destroyed
-                }
-                pushException(null)
+                    exitChannel.receive()
+                }                                           // otherwise process already exited, nothing to be done
             }
         }
     }
 
-    /**
-     * This is an indication of which thread pool is being active.
-     * Reading/writing this collection still needs an additional lock to prevent concurrent modification.
-     */
-    private val guardThreads = AtomicReference<HashSet<Thread>>(HashSet())
+    private val job = Job()
+    override val coroutineContext get() = Dispatchers.Main + job
 
-    fun start(cmd: List<String>, onRestartCallback: (() -> Unit)? = null): GuardedProcessPool {
-        val guard = Guard(cmd, onRestartCallback)
-        val guardThreads = guardThreads.get()
-        synchronized(guardThreads) {
-            guardThreads.add(thread("GuardThread-${guard.cmdName}") {
-                guard.looper(guardThreads)
-            })
+    @MainThread
+    fun start(cmd: List<String>, onRestartCallback: (suspend () -> Unit)? = null) {
+        Crashlytics.log(Log.DEBUG, TAG, "start process: " + Commandline.toString(cmd))
+        Guard(cmd).apply {
+            start() // if start fails, IOException will be thrown directly
+            launch { looper(onRestartCallback) }
         }
-        val ioException = guard.excQueue.take()
-        if (ioException !== Dummy) throw ioException
-        return this
     }
 
-    fun killAll() {
-        val guardThreads = guardThreads.getAndSet(HashSet())
-        synchronized(guardThreads) {
-            guardThreads.forEach { it.interrupt() }
-            try {
-                guardThreads.forEach { it.join() }
-            } catch (_: InterruptedException) { }
-        }
+    @MainThread
+    fun close(scope: CoroutineScope) {
+        job.cancel()
+        scope.launch { job.join() }
     }
 }

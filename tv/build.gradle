@@ -25,7 +25,6 @@ android {
         targetSdkVersion rootProject.sdkVersion
         versionCode rootProject.versionCode
         versionName rootProject.versionName
-        testApplicationId "com.github.shadowsocks.tv.test"
         resConfigs "fa", "fr", "ja", "ko", "ru", "tr", "zh-rCN", "zh-rTW"
     }
     buildTypes {
@@ -48,13 +47,12 @@ android {
     }
     sourceSets.main.jniLibs.srcDirs +=
             new File(project(':core').buildDir, "intermediates/bundles/${getCurrentFlavor()}/jni")
-    sourceSets.main.jniLibs.srcDirs += new File(project(':core').projectDir, "src/overture/bin")
 }
 
 dependencies {
     implementation project(':core')
     implementation fileTree(dir: 'libs', include: ['*.jar'])
-    implementation "androidx.leanback:leanback-preference:1.0.0"
+    implementation "androidx.leanback:leanback-preference:1.1.0-alpha01"
 }
 
 apply plugin: 'com.google.gms.google-services'

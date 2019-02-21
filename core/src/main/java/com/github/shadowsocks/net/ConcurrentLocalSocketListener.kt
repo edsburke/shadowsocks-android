@@ -1,7 +1,7 @@
 /*******************************************************************************
  *                                                                             *
- *  Copyright (C) 2017 by Max Lv <max.c.lv@gmail.com>                          *
- *  Copyright (C) 2017 by Mygod Studio <contact-shadowsocks-android@mygod.be>  *
+ *  Copyright (C) 2019 by Max Lv <max.c.lv@gmail.com>                          *
+ *  Copyright (C) 2019 by Mygod Studio <contact-shadowsocks-android@mygod.be>  *
  *                                                                             *
  *  This program is free software: you can redistribute it and/or modify       *
  *  it under the terms of the GNU General Public License as published by       *
@@ -18,51 +18,26 @@
  *                                                                             *
  *******************************************************************************/
 
-package com.github.shadowsocks.bg
+package com.github.shadowsocks.net
 
-import android.net.LocalServerSocket
 import android.net.LocalSocket
-import android.net.LocalSocketAddress
 import com.github.shadowsocks.utils.printLog
+import kotlinx.coroutines.*
 import java.io.File
-import java.io.IOException
 
-abstract class LocalSocketListener(protected val tag: String) : Thread(tag) {
-    init {
-        setUncaughtExceptionHandler { _, t -> printLog(t) }
+abstract class ConcurrentLocalSocketListener(name: String, socketFile: File) : LocalSocketListener(name, socketFile),
+        CoroutineScope {
+    private val job = SupervisorJob()
+    override val coroutineContext get() = Dispatchers.IO + job + CoroutineExceptionHandler { _, t -> printLog(t) }
+
+    override fun accept(socket: LocalSocket) {
+        launch { super.accept(socket) }
     }
 
-    protected abstract val socketFile: File
-    @Volatile
-    private var running = true
-
-    /**
-     * Inherited class do not need to close input/output streams as they will be closed automatically.
-     */
-    protected abstract fun accept(socket: LocalSocket)
-    final override fun run() {
-        socketFile.delete() // It's a must-have to close and reuse previous local socket.
-        LocalSocket().use { localSocket ->
-            val serverSocket = try {
-                localSocket.bind(LocalSocketAddress(socketFile.absolutePath, LocalSocketAddress.Namespace.FILESYSTEM))
-                LocalServerSocket(localSocket.fileDescriptor)
-            } catch (e: IOException) {
-                printLog(e)
-                return
-            }
-            while (running) {
-                try {
-                    serverSocket.accept()
-                } catch (e: IOException) {
-                    printLog(e)
-                    null
-                }?.use(this::accept)
-            }
-        }
-    }
-
-    fun stopThread() {
+    override fun shutdown(scope: CoroutineScope) {
         running = false
-        interrupt()
+        job.cancel()
+        super.shutdown(scope)
+        scope.launch { job.join() }
     }
 }

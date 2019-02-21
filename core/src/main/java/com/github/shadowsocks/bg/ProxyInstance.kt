@@ -22,6 +22,8 @@ package com.github.shadowsocks.bg
 
 import android.content.Context
 import android.util.Base64
+import android.util.Log
+import com.crashlytics.android.Crashlytics
 import com.github.shadowsocks.Core
 import com.github.shadowsocks.acl.Acl
 import com.github.shadowsocks.acl.AclSyncer
@@ -30,45 +32,46 @@ import com.github.shadowsocks.database.ProfileManager
 import com.github.shadowsocks.plugin.PluginConfiguration
 import com.github.shadowsocks.plugin.PluginManager
 import com.github.shadowsocks.preference.DataStore
-import com.github.shadowsocks.utils.*
-import okhttp3.FormBody
-import okhttp3.OkHttpClient
-import okhttp3.Request
+import com.github.shadowsocks.utils.DirectBoot
+import com.github.shadowsocks.utils.disconnectFromMain
+import com.github.shadowsocks.utils.parseNumericAddress
+import com.github.shadowsocks.utils.signaturesCompat
+import kotlinx.coroutines.*
 import java.io.File
 import java.io.IOException
-import java.net.InetAddress
+import java.net.HttpURLConnection
 import java.net.UnknownHostException
 import java.security.MessageDigest
-import java.util.concurrent.TimeUnit
 
 /**
  * This class sets up environment for ss-local.
  */
-class ProxyInstance(val profile: Profile, private val route: String = profile.route): AutoCloseable {
-    var configFile: File? = null
+class ProxyInstance(val profile: Profile, private val route: String = profile.route) {
+    private var configFile: File? = null
     var trafficMonitor: TrafficMonitor? = null
     private val plugin = PluginConfiguration(profile.plugin ?: "").selectedOptions
     val pluginPath by lazy { PluginManager.init(plugin) }
 
-    fun init() {
+    suspend fun init(service: BaseService.Interface) {
         if (profile.host == "198.199.101.152") {
-            val client = OkHttpClient.Builder()
-                    .connectTimeout(10, TimeUnit.SECONDS)
-                    .writeTimeout(10, TimeUnit.SECONDS)
-                    .readTimeout(30, TimeUnit.SECONDS)
-                    .build()
             val mdg = MessageDigest.getInstance("SHA-1")
             mdg.update(Core.packageInfo.signaturesCompat.first().toByteArray())
-            val requestBody = FormBody.Builder()
-                    .add("sig", String(Base64.encode(mdg.digest(), 0)))
-                    .build()
-            val request = Request.Builder()
-                    .url(RemoteConfig.proxyUrl)
-                    .post(requestBody)
-                    .build()
+            val conn = service.openConnection(RemoteConfig.proxyUrl) as HttpURLConnection
+            conn.requestMethod = "POST"
+            conn.doOutput = true
 
-            val proxies = client.newCall(request).execute()
-                    .body()!!.string().split('|').toMutableList()
+            val proxies = try {
+                withTimeoutOrNull(10_000) {
+                    withContext(Dispatchers.IO) {
+                        conn.outputStream.bufferedWriter().use {
+                            it.write("sig=" + Base64.encodeToString(mdg.digest(), Base64.DEFAULT))
+                        }
+                        conn.inputStream.bufferedReader().readText()
+                    }
+                } ?: throw UnknownHostException()
+            } finally {
+                conn.disconnectFromMain()
+            }.split('|').toMutableList()
             proxies.shuffle()
             val proxy = proxies.first().split(':')
             profile.host = proxy[0].trim()
@@ -77,18 +80,22 @@ class ProxyInstance(val profile: Profile, private val route: String = profile.ro
             profile.method = proxy[3].trim()
         }
 
-        if (route == Acl.CUSTOM_RULES) Acl.save(Acl.CUSTOM_RULES, Acl.customRules.flatten(10))
+        if (route == Acl.CUSTOM_RULES) Acl.save(Acl.CUSTOM_RULES, Acl.customRules.flatten(10, service::openConnection))
 
         // it's hard to resolve DNS on a specific interface so we'll do it here
-        if (!profile.host.isNumericAddress()) {
-            thread("ProxyInstance-resolve") {
-                // A WAR fix for Huawei devices that UnknownHostException cannot be caught correctly
-                try {
-                    profile.host = InetAddress.getByName(profile.host).hostAddress ?: ""
-                } catch (_: UnknownHostException) { }
-            }.join(10 * 1000)
-            if (!profile.host.isNumericAddress()) throw UnknownHostException()
-        }
+        if (profile.host.parseNumericAddress() == null) profile.host = withTimeoutOrNull(10_000) {
+            var retries = 0
+            while (isActive) try {
+                val io = GlobalScope.async(Dispatchers.IO) { service.resolver(profile.host) }
+                return@withTimeoutOrNull io.await().firstOrNull()
+            } catch (e: UnknownHostException) {
+                // retries are only needed on Chrome OS where arc0 is brought up/down during VPN changes
+                if (!DataStore.hasArc0) throw e
+                Thread.yield()
+                Crashlytics.log(Log.WARN, "ProxyInstance-resolver", "Retry resolving attempt #${++retries}")
+            }
+            null    // only here for type resolving
+        }?.hostAddress ?: throw UnknownHostException()
     }
 
     /**
@@ -100,13 +107,7 @@ class ProxyInstance(val profile: Profile, private val route: String = profile.ro
 
         this.configFile = configFile
         val config = profile.toJson()
-        if (pluginPath != null) {
-            val pluginCmd = arrayListOf(pluginPath!!)
-            if (DataStore.tcpFastOpen) pluginCmd.add("--fast-open")
-            config
-                    .put("plugin", Commandline.toString(service.buildAdditionalArguments(pluginCmd)))
-                    .put("plugin_opts", plugin.toString())
-        }
+        if (pluginPath != null) config.put("plugin", pluginPath).put("plugin_opts", plugin.toString())
         configFile.writeText(config.toString())
 
         val cmd = service.buildAdditionalArguments(arrayListOf(
@@ -124,20 +125,20 @@ class ProxyInstance(val profile: Profile, private val route: String = profile.ro
         }
 
         // for UDP profile, it's only going to operate in UDP relay mode-only so this flag has no effect
-        if (profile.udpdns) cmd += "-D"
+        if (profile.route == Acl.ALL || profile.route == Acl.BYPASS_LAN) cmd += "-D"
 
         if (DataStore.tcpFastOpen) cmd += "--fast-open"
 
-        service.data.processes.start(cmd)
+        service.data.processes!!.start(cmd)
     }
 
     fun scheduleUpdate() {
         if (route !in arrayOf(Acl.ALL, Acl.CUSTOM_RULES)) AclSyncer.schedule(route)
     }
 
-    override fun close() {
+    fun shutdown(scope: CoroutineScope) {
         trafficMonitor?.apply {
-            close()
+            thread.shutdown(scope)
             // Make sure update total traffic when stopping the runner
             try {
                 // profile may have host, etc. modified and thus a re-fetch is necessary (possible race condition)

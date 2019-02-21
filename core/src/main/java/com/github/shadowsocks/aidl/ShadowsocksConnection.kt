@@ -18,59 +18,73 @@
  *                                                                             *
  *******************************************************************************/
 
-package com.github.shadowsocks
+package com.github.shadowsocks.aidl
 
-import android.app.Fragment
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.content.ServiceConnection
 import android.os.DeadObjectException
+import android.os.Handler
 import android.os.IBinder
 import android.os.RemoteException
-import com.github.shadowsocks.aidl.IShadowsocksService
-import com.github.shadowsocks.aidl.IShadowsocksServiceCallback
-import com.github.shadowsocks.bg.BaseService
+import com.github.shadowsocks.bg.ProxyService
+import com.github.shadowsocks.bg.TransproxyService
+import com.github.shadowsocks.bg.VpnService
+import com.github.shadowsocks.preference.DataStore
 import com.github.shadowsocks.utils.Action
-import java.util.*
+import com.github.shadowsocks.utils.Key
 
-class ShadowsocksConnection(private val instance: Interface) : ServiceConnection {
+/**
+ * This object should be compact as it will not get GC-ed.
+ */
+class ShadowsocksConnection(private val handler: Handler = Handler(),
+                            private var listenForDeath: Boolean = false) :
+        ServiceConnection, IBinder.DeathRecipient {
     companion object {
-        private val connections = WeakHashMap<Interface, ShadowsocksConnection>()
+        val serviceClass get() = when (DataStore.serviceMode) {
+            Key.modeProxy -> ProxyService::class
+            Key.modeVpn -> VpnService::class
+            Key.modeTransproxy -> TransproxyService::class
+            else -> throw UnknownError()
+        }.java
     }
 
-    interface Interface : IBinder.DeathRecipient {
-        val serviceCallback: IShadowsocksServiceCallback? get() = null
-        val connection: ShadowsocksConnection
-            get() = connections.getOrPut(this) { ShadowsocksConnection(this) }
-        val listenForDeath get() = false
+    interface Callback {
+        fun stateChanged(state: Int, profileName: String?, msg: String?)
+        fun trafficUpdated(profileId: Long, stats: TrafficStats) { }
+        fun trafficPersisted(profileId: Long) { }
 
-        fun onServiceConnected(service: IShadowsocksService) { }
+        fun onServiceConnected(service: IShadowsocksService)
         /**
          * Different from Android framework, this method will be called even when you call `detachService`.
          */
         fun onServiceDisconnected() { }
-        override fun binderDied() {
-            connection.service = null
-        }
+        fun onBinderDied() { }
     }
 
     private var connectionActive = false
     private var callbackRegistered = false
-    private var binder: IBinder? = null
-    private val context by lazy {
-        when (instance) {
-            is Fragment -> instance.activity
-            else -> instance as Context
+    private var callback: Callback? = null
+    private val serviceCallback = object : IShadowsocksServiceCallback.Stub() {
+        override fun stateChanged(state: Int, profileName: String?, msg: String?) {
+            handler.post { callback!!.stateChanged(state, profileName, msg) }
+        }
+        override fun trafficUpdated(profileId: Long, stats: TrafficStats) {
+            handler.post { callback!!.trafficUpdated(profileId, stats) }
+        }
+        override fun trafficPersisted(profileId: Long) {
+            handler.post { callback!!.trafficPersisted(profileId) }
         }
     }
+    private var binder: IBinder? = null
 
-    var listeningForBandwidth = false
+    var bandwidthTimeout = 0L
         set(value) {
             val service = service
-            if (listeningForBandwidth != value && service != null && instance.serviceCallback != null)
-                if (value) service.startListeningForBandwidth(instance.serviceCallback) else try {
-                    service.stopListeningForBandwidth(instance.serviceCallback)
+            if (bandwidthTimeout != value && service != null)
+                if (value > 0) service.startListeningForBandwidth(serviceCallback, value) else try {
+                    service.stopListeningForBandwidth(serviceCallback)
                 } catch (_: DeadObjectException) { }
             field = value
         }
@@ -78,50 +92,56 @@ class ShadowsocksConnection(private val instance: Interface) : ServiceConnection
 
     override fun onServiceConnected(name: ComponentName?, binder: IBinder) {
         this.binder = binder
-        if (instance.listenForDeath) binder.linkToDeath(instance, 0)
+        if (listenForDeath) binder.linkToDeath(this, 0)
         val service = IShadowsocksService.Stub.asInterface(binder)!!
         this.service = service
-        if (instance.serviceCallback != null && !callbackRegistered) try {
-            service.registerCallback(instance.serviceCallback)
+        if (!callbackRegistered) try {
+            service.registerCallback(serviceCallback)
             callbackRegistered = true
-            if (listeningForBandwidth) service.startListeningForBandwidth(instance.serviceCallback)
+            if (bandwidthTimeout > 0) service.startListeningForBandwidth(serviceCallback, bandwidthTimeout)
         } catch (_: RemoteException) { }
-        instance.onServiceConnected(service)
+        callback!!.onServiceConnected(service)
     }
 
     override fun onServiceDisconnected(name: ComponentName?) {
         unregisterCallback()
-        instance.onServiceDisconnected()
+        callback!!.onServiceDisconnected()
         service = null
         binder = null
+    }
+
+    override fun binderDied() {
+        service = null
+        handler.post(callback!!::onBinderDied)
     }
 
     private fun unregisterCallback() {
         val service = service
-        if (service != null && instance.serviceCallback != null && callbackRegistered) try {
-            service.unregisterCallback(instance.serviceCallback)
+        if (service != null && callbackRegistered) try {
+            service.unregisterCallback(serviceCallback)
         } catch (_: RemoteException) { }
         callbackRegistered = false
     }
 
-    fun connect() {
+    fun connect(context: Context, callback: Callback) {
         if (connectionActive) return
         connectionActive = true
-        val intent = Intent(context, BaseService.serviceClass.java).setAction(Action.SERVICE)
+        check(this.callback == null)
+        this.callback = callback
+        val intent = Intent(context, serviceClass).setAction(Action.SERVICE)
         context.bindService(intent, this, Context.BIND_AUTO_CREATE)
     }
 
-    fun disconnect() {
+    fun disconnect(context: Context) {
         unregisterCallback()
-        instance.onServiceDisconnected()
         if (connectionActive) try {
             context.unbindService(this)
         } catch (_: IllegalArgumentException) { }   // ignore
         connectionActive = false
-        if (instance.listenForDeath) binder?.unlinkToDeath(instance, 0)
+        if (listenForDeath) binder?.unlinkToDeath(this, 0)
         binder = null
-        if (instance.serviceCallback != null)
-            service?.stopListeningForBandwidth(instance.serviceCallback)
+        service?.stopListeningForBandwidth(serviceCallback)
         service = null
+        callback = null
     }
 }

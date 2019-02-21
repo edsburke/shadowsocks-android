@@ -18,8 +18,10 @@
  *                                                                             *
  *******************************************************************************/
 
-package com.github.shadowsocks.utils
+package com.github.shadowsocks.net
 
+import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeoutOrNull
 import java.io.File
 import java.io.IOException
 
@@ -58,5 +60,5 @@ object TcpFastOpen {
             e.localizedMessage
         }
     }
-    fun enableAsync() = thread("TcpFastOpen") { enable() }.join(1000)
+    fun enableTimeout() = runBlocking { withTimeoutOrNull(1000) { enable() } }
 }

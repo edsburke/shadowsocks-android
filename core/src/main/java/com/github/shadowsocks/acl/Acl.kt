@@ -25,13 +25,14 @@ import android.util.Log
 import androidx.recyclerview.widget.SortedList
 import com.crashlytics.android.Crashlytics
 import com.github.shadowsocks.Core
+import com.github.shadowsocks.net.Subnet
 import com.github.shadowsocks.preference.DataStore
-import com.github.shadowsocks.utils.Subnet
 import com.github.shadowsocks.utils.asIterable
 import java.io.File
 import java.io.IOException
 import java.io.Reader
 import java.net.URL
+import java.net.URLConnection
 
 class Acl {
     companion object {
@@ -151,11 +152,11 @@ class Acl {
         fromReader(getFile(id).bufferedReader())
     } catch (_: IOException) { this }
 
-    fun flatten(depth: Int): Acl {
+    suspend fun flatten(depth: Int, connect: suspend (URL) -> URLConnection): Acl {
         if (depth > 0) for (url in urls.asIterable()) {
             val child = Acl()
             try {
-                child.fromReader(url.openStream().bufferedReader(), bypass).flatten(depth - 1)
+                child.fromReader(connect(url).getInputStream().bufferedReader(), bypass).flatten(depth - 1, connect)
             } catch (e: IOException) {
                 e.printStackTrace()
                 continue

@@ -21,8 +21,10 @@
 package com.github.shadowsocks.database
 
 import android.net.Uri
+import android.os.Parcelable
 import android.util.Base64
 import android.util.Log
+import android.util.LongSparseArray
 import androidx.core.net.toUri
 import androidx.room.*
 import com.github.shadowsocks.plugin.PluginConfiguration
@@ -31,6 +33,7 @@ import com.github.shadowsocks.preference.DataStore
 import com.github.shadowsocks.utils.Key
 import com.github.shadowsocks.utils.asIterable
 import com.github.shadowsocks.utils.parsePort
+import kotlinx.android.parcel.Parcelize
 import org.json.JSONArray
 import org.json.JSONObject
 import org.json.JSONTokener
@@ -40,7 +43,31 @@ import java.net.URISyntaxException
 import java.util.*
 
 @Entity
-class Profile : Serializable {
+@Parcelize
+data class Profile(
+        @PrimaryKey(autoGenerate = true)
+        var id: Long = 0,
+        var name: String? = "",
+        var host: String = "198.199.101.152",
+        var remotePort: Int = 8388,
+        var password: String = "u1rRWTssNv0p",
+        var method: String = "aes-256-cfb",
+        var route: String = "all",
+        var remoteDns: String = "8.8.8.8",
+        var proxyApps: Boolean = false,
+        var bypass: Boolean = false,
+        var udpdns: Boolean = false,
+        var ipv6: Boolean = true,
+        var individual: String = "",
+        var tx: Long = 0,
+        var rx: Long = 0,
+        var userOrder: Long = 0,
+        var plugin: String? = null,
+        var udpFallback: Long? = null,
+
+        @Ignore // not persisted in db, only used by direct boot
+        var dirty: Boolean = false
+) : Parcelable, Serializable {
     companion object {
         private const val TAG = "ShadowParser"
         private const val serialVersionUID = 0L
@@ -199,29 +226,6 @@ class Profile : Serializable {
         fun deleteAll(): Int
     }
 
-    @PrimaryKey(autoGenerate = true)
-    var id: Long = 0
-    var name: String? = ""
-    var host: String = "198.199.101.152"
-    var remotePort: Int = 8388
-    var password: String = "u1rRWTssNv0p"
-    var method: String = "aes-256-cfb"
-    var route: String = "all"
-    var remoteDns: String = "8.8.8.8"
-    var proxyApps: Boolean = false
-    var bypass: Boolean = false
-    var udpdns: Boolean = false
-    var ipv6: Boolean = true
-    var individual: String = ""
-    var tx: Long = 0
-    var rx: Long = 0
-    var userOrder: Long = 0
-    var plugin: String? = null
-    var udpFallback: Long? = null
-
-    @Ignore // not persisted in db, only used by direct boot
-    var dirty: Boolean = false
-
     val formattedAddress get() = (if (host.contains(":")) "[%s]:%d" else "%s:%d").format(host, remotePort)
     val formattedName get() = if (name.isNullOrEmpty()) formattedAddress else name!!
 
@@ -238,7 +242,7 @@ class Profile : Serializable {
         val builder = Uri.Builder()
                 .scheme("ss")
                 .encodedAuthority("%s@%s:%d".format(Locale.ENGLISH,
-                        Base64.encodeToString("%s:%s".format(Locale.ENGLISH, method, password).toByteArray(),
+                        Base64.encodeToString("$method:$password".toByteArray(),
                                 Base64.NO_PADDING or Base64.NO_WRAP or Base64.URL_SAFE),
                         if (host.contains(':')) "[$host]" else host, remotePort))
         val configuration = PluginConfiguration(plugin ?: "")
@@ -249,7 +253,7 @@ class Profile : Serializable {
     }
     override fun toString() = toUri().toString()
 
-    fun toJson(profiles: Map<Long, Profile>? = null): JSONObject = JSONObject().apply {
+    fun toJson(profiles: LongSparseArray<Profile>? = null): JSONObject = JSONObject().apply {
         put("server", host)
         put("server_port", remotePort)
         put("password", password)
@@ -274,7 +278,7 @@ class Profile : Serializable {
             }
         })
         put("udpdns", udpdns)
-        val fallback = profiles[udpFallback]
+        val fallback = profiles.get(udpFallback ?: return@apply)
         if (fallback != null && fallback.plugin.isNullOrEmpty()) fallback.toJson().also { put("udp_fallback", it) }
     }
 

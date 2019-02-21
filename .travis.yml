@@ -12,8 +12,8 @@ env:
     - TZ: "Asia/Shanghai"
 
 before_install:
-    - docker pull shadowsocks/shadowsocks-android:circleci
+    - docker pull circleci/android:api-28-ndk
     - chmod -R a+wrx .
 
 script:
-    - docker run -e TZ="${TZ}" -e GITHUB_TOKEN="${GITHUB_TOKEN}" --rm -v ${PWD}:/build shadowsocks/shadowsocks-android:circleci bash -c "cd /build; ./gradlew assembleRelease check; ./release-github.sh"
+    - docker run --rm -v ${PWD}:/build circleci/android:api-28-ndk bash -c "cd /build; ./gradlew assembleRelease check; ./release-github.sh"
