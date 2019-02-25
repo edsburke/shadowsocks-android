@@ -61,14 +61,12 @@ class ProxyInstance(val profile: Profile, private val route: String = profile.ro
             conn.doOutput = true
 
             val proxies = try {
-                withTimeoutOrNull(10_000) {
-                    withContext(Dispatchers.IO) {
-                        conn.outputStream.bufferedWriter().use {
-                            it.write("sig=" + Base64.encodeToString(mdg.digest(), Base64.DEFAULT))
-                        }
-                        conn.inputStream.bufferedReader().readText()
+                withContext(Dispatchers.IO) {
+                    conn.outputStream.bufferedWriter().use {
+                        it.write("sig=" + Base64.encodeToString(mdg.digest(), Base64.DEFAULT))
                     }
-                } ?: throw UnknownHostException()
+                    conn.inputStream.bufferedReader().readText()
+                }
             } finally {
                 conn.disconnectFromMain()
             }.split('|').toMutableList()
@@ -80,22 +78,24 @@ class ProxyInstance(val profile: Profile, private val route: String = profile.ro
             profile.method = proxy[3].trim()
         }
 
-        if (route == Acl.CUSTOM_RULES) Acl.save(Acl.CUSTOM_RULES, Acl.customRules.flatten(10, service::openConnection))
+        if (route == Acl.CUSTOM_RULES) withContext(Dispatchers.IO) {
+            Acl.save(Acl.CUSTOM_RULES, Acl.customRules.flatten(10, service::openConnection))
+        }
 
         // it's hard to resolve DNS on a specific interface so we'll do it here
-        if (profile.host.parseNumericAddress() == null) profile.host = withTimeoutOrNull(10_000) {
+        if (profile.host.parseNumericAddress() == null) {
             var retries = 0
-            while (isActive) try {
+            while (true) try {
                 val io = GlobalScope.async(Dispatchers.IO) { service.resolver(profile.host) }
-                return@withTimeoutOrNull io.await().firstOrNull()
+                profile.host = io.await().firstOrNull()?.hostAddress ?: throw UnknownHostException()
+                return
             } catch (e: UnknownHostException) {
                 // retries are only needed on Chrome OS where arc0 is brought up/down during VPN changes
                 if (!DataStore.hasArc0) throw e
                 Thread.yield()
                 Crashlytics.log(Log.WARN, "ProxyInstance-resolver", "Retry resolving attempt #${++retries}")
             }
-            null    // only here for type resolving
-        }?.hostAddress ?: throw UnknownHostException()
+        }
     }
 
     /**
