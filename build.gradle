@@ -13,8 +13,8 @@ buildscript {
         junitVersion = '4.12'
         androidTestVersion = '1.1.1'
         androidEspressoVersion = '3.1.1'
-        versionCode = 4070250
-        versionName = '4.7.2-nightly'
+        versionCode = 4070350
+        versionName = '4.7.3-nightly'
     }
 
     repositories {
@@ -26,10 +26,10 @@ buildscript {
     }
 
     dependencies {
-        classpath 'com.vanniktech:gradle-maven-publish-plugin:0.8.0'
-        classpath 'com.android.tools.build:gradle:3.3.1'
-        classpath 'com.github.ben-manes:gradle-versions-plugin:0.20.0'
+        classpath 'com.android.tools.build:gradle:3.3.2'
+        classpath 'com.github.ben-manes:gradle-versions-plugin:0.21.0'
         classpath 'com.google.gms:google-services:4.2.0'
+        classpath 'com.vanniktech:gradle-maven-publish-plugin:0.8.0'
         classpath 'io.fabric.tools:gradle:1.27.1'
         classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlinVersion"
     }
