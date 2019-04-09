@@ -101,12 +101,15 @@ class VpnService : BaseVpnService(), LocalDnsService.Interface {
     private var conn: ParcelFileDescriptor? = null
     private var worker: ProtectWorker? = null
     private var active = false
+    private var metered = false
     private var underlyingNetwork: Network? = null
         set(value) {
             field = value
             if (active && Build.VERSION.SDK_INT >= 22) setUnderlyingNetworks(underlyingNetworks)
         }
-    private val underlyingNetworks get() = underlyingNetwork?.let { arrayOf(it) }
+    private val underlyingNetworks get() =
+        // clearing underlyingNetworks makes Android 9+ consider the network to be metered
+        if (Build.VERSION.SDK_INT >= 28 && metered) null else underlyingNetwork?.let { arrayOf(it) }
 
     override fun onBind(intent: Intent) = when (intent.action) {
         SERVICE_INTERFACE -> super<BaseVpnService>.onBind(intent)
@@ -190,22 +193,20 @@ class VpnService : BaseVpnService(), LocalDnsService.Interface {
             }
         }
 
+        metered = profile.metered
         active = true   // possible race condition here?
         if (Build.VERSION.SDK_INT >= 22) builder.setUnderlyingNetworks(underlyingNetworks)
 
         val conn = builder.establish() ?: throw NullConnectionException()
         this.conn = conn
-        val fd = conn.fd
 
         val cmd = arrayListOf(File(applicationInfo.nativeLibraryDir, Executable.TUN2SOCKS).absolutePath,
                 "--netif-ipaddr", PRIVATE_VLAN4_ROUTER,
-                "--netif-netmask", "255.255.255.0",
                 "--socks-server-addr", "${DataStore.listenAddress}:${DataStore.portProxy}",
-                "--tunfd", fd.toString(),
                 "--tunmtu", VPN_MTU.toString(),
                 "--sock-path", "sock_path",
                 "--dnsgw", "127.0.0.1:${DataStore.portLocalDns}",
-                "--loglevel", "3")
+                "--loglevel", "warning")
         if (profile.ipv6) {
             cmd += "--netif-ip6addr"
             cmd += PRIVATE_VLAN6_ROUTER
